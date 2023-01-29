@@ -11,6 +11,8 @@ import requests
 import urllib3
 from bs4 import BeautifulSoup
 from loguru import logger
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 
 # Local Imports
 from . import config
@@ -21,10 +23,10 @@ from .functions import Geo
 class Webscrape:
     '''Class to scrape data from the given AIRAC eAIP URL'''
 
-    def __init__(self, use_next:bool=False):
+    def __init__(self):
         cycle = Airac()
         self.cycle = cycle.current_cycle()
-        self.cycle_url = cycle.url(use_next=use_next)
+        self.cycle_url = cycle.url()
         self.country = config.COUNTRY_CODE
 
     def get_table_soup(self, uri) -> BeautifulSoup:
@@ -38,9 +40,19 @@ class Webscrape:
         if response.status == 404:
             logger.error("Unable to retrieve page. Received a 404 response")
             return 404
-        page = requests.get(address, timeout=30)
 
-        return BeautifulSoup(page.content, "html.parser")
+        logger.info(address)
+
+        options = Options()
+        options.headless = True
+        options.add_argument("--window-size=1920,1200")
+
+        driver = webdriver.Chrome(options=options, executable_path="chromedriver.exe")
+        driver.get(address)
+        source = driver.page_source
+        driver.quit()
+
+        return BeautifulSoup(source, "html.parser")
 
     def parse_ad01_data(self) -> pd.DataFrame:
         """Parse the data from AD-0.1"""
