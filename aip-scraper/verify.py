@@ -5,6 +5,7 @@ UK AIP Scraper
 # Python Imports
 import os
 import re
+import sys
 
 # 3rd Party Imports
 import pandas as pd
@@ -17,6 +18,9 @@ from loguru import logger
 from . import config
 from .airac import Airac
 from .functions import Geo
+
+logger.remove()
+logger.add(sys.stderr, level="INFO")
 
 
 class Verify:
@@ -137,3 +141,45 @@ class Verify:
 
         for row in sorted(folder_set):
             logger.warning("ANY: {} isn't listed in the eAIP", row)
+
+    def enr_4_4_check(self):
+        """Verifies ENR 4.4 Entries"""
+
+        # load the dataframe
+        enr_044_df = pd.read_csv(config.WORK_DIR + "\\DataFrames\\enr_044.csv")
+
+        # reverse check
+        rev_fixes = []
+
+        # iterate over the sector file data
+        with open(config.WORK_DIR + "\\DataFrames\\check.txt", "r", encoding="utf-8") as fixes:
+            for line in fixes:
+                # split the entry if not blank
+                if line != "":
+                    line_split = line.rstrip().split()
+                    rev_fixes.append(line_split[0])
+                    logger.debug(line_split)
+
+                    # search the df for a matching point
+                    df_filter = enr_044_df.loc[enr_044_df["name"].str.match(line_split[0])]
+
+                    # is there something to look at?
+                    if not df_filter.empty:
+                        # compare the coords
+                        enr044_coords = str(df_filter.iloc[0]['coords'])
+                        ec_sani = re.match(r"([N|S])([\d]{,3})\.([\d]{,2})\.([\d]{,2})\.([\d]{,3})\s([E|W])([\d]{,3})\.([\d]{,2})\.([\d]{,2})\.([\d]{,3})", enr044_coords)
+                        enr044_coords = f"{ec_sani.group(1)}{ec_sani.group(2).zfill(3)}.{ec_sani.group(3).zfill(2)}.{ec_sani.group(4).zfill(2)}.{ec_sani.group(5).ljust(3, '0')} {ec_sani.group(6)}{ec_sani.group(7).zfill(3)}.{ec_sani.group(8).zfill(2)}.{ec_sani.group(9).zfill(2)}.{ec_sani.group(10).ljust(3, '0')}"
+                        logger.debug("ENR 4.4 Coords: {}", enr044_coords)
+
+                        vatsim_coords = f"{line_split[1]} {line_split[2]}"
+                        logger.debug(" VATSIM Coords: {}", vatsim_coords)
+                        if enr044_coords != vatsim_coords:
+                            logger.warning(f"Coordinates for {line_split[0]} {vatsim_coords} do not match the AIP entry of {enr044_coords}")
+                        else:
+                            logger.debug("{} Okay", line_split[0])
+                    else:
+                        logger.error("No corresponding point in the AIP for {}", line_split[0])
+        
+        for row in enr_044_df.itertuples():
+            if row.name not in rev_fixes:
+                logger.warning("{} seems to be missing from VATSIM UK data", row.name)
