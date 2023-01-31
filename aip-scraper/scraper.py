@@ -315,6 +315,7 @@ class Webscrape:
         df_uir = pd.DataFrame(columns=df_columns)
         df_cta = pd.DataFrame(columns=df_columns)
         df_tma = pd.DataFrame(columns=df_columns)
+        df_atz = pd.DataFrame(columns=df_columns)
 
         logger.info("Parsing "+ self.country +"-ENR-2.1 Data (FIR, UIR, TMA AND CTA)...")
         get_data = self.get_table_soup(self.country + "-ENR-2.1-en-GB.html")
@@ -331,7 +332,7 @@ class Webscrape:
         complex_search_data = get_data.find_all("p")
         complex_len = len(complex_search_data)
         while row < complex_len:
-            title = re.search(r"id=\"ID_[\d]{8,10}\"\>([A-Z]*)\s(FIR|CTA|TMA|CTR)\s([0-9]{0,2})\<", str(complex_search_data[row]))
+            title = re.search(r"id=\"ID_[\d]{8,10}\"\>([A-Z]*)\s(ATZ|FIR|CTA|TMA|CTR)\s([0-9]{0,2})\<", str(complex_search_data[row]))
             if title:
                 print_title = f"{str(title.group(1))} {str(title.group(2))} {str(title.group(3))}"
 
@@ -372,7 +373,7 @@ class Webscrape:
                 print_title = re.search(r"\>(.*)\<", str(search_data[row-1]))
                 if print_title:
                     # search for FIR / UIR* / CTA / TMA in the printed title *removed as same extent of FIR in UK
-                    airspace = re.search(r"(FIR|CTA|TMA|CTR)", str(search_data[row-1]))
+                    airspace = re.search(r"(ATZ|FIR|CTA|TMA|CTR)", str(search_data[row-1]))
                     if airspace:
                         df_in_title = str(print_title.group(1))
                     loop_coord = True
@@ -444,10 +445,10 @@ class Webscrape:
                 mid_dd = Geo.dms2dd(mid_lat[1], mid_lon[1], mid_lat[2], mid_lon[2])
                 end_dd = Geo.dms2dd(end_lat[1], end_lon[1], end_lat[2], end_lon[2])
 
-                """arc_geo = Geo()
+                arc_geo = Geo()
                 arc_out = arc_geo.generate_semicircle(float(mid_dd[0]), float(mid_dd[1]), float(start_dd[0]), float(start_dd[1]), float(end_dd[0]), float(end_dd[1]), cacw)
                 for coord in arc_out:
-                    space.append(coord)"""
+                    space.append(coord)
 
                 # store the last arc title to compare against
                 last_arc_title = str(print_title.group(1))
@@ -459,7 +460,7 @@ class Webscrape:
                 if print_coord:
                     space.append(print_coord[0])
 
-            """if loop_coord and (space != []):
+            if loop_coord and (space != []):
                 output = Geo.get_boundary(space, last_df_in_title)
                 if airspace:
                     # for FIRs do this
@@ -477,10 +478,13 @@ class Webscrape:
                     if last_airspace.group(1) == "TMA":
                         df_tma_out = coord_to_table(last_df_in_title, callsign_out, frequency, output)
                         df_tma = pd.concat([df_tma, df_tma_out], ignore_index=True)
+                    if last_airspace.group(1) == "ATZ":
+                        df_atz_out = coord_to_table(last_df_in_title, callsign_out, frequency, output)
+                        df_atz = pd.concat([df_atz, df_atz_out], ignore_index=True)
                     space = []
                     loop_coord = True
                     first_callsign = False
-                    first_freq = False"""
+                    first_freq = False
 
             if airspace:
                 last_df_in_title = df_in_title
@@ -488,7 +492,7 @@ class Webscrape:
             row += 1
         df_uir = df_fir # UIR is same extent as FIR
 
-        return [df_fir, df_uir, df_cta, df_tma]
+        return [df_fir, df_uir, df_cta, df_tma, df_atz]
 
     def parse_enr03_data(self, section:str) -> pd.DataFrame:
         """Parse the data from ENR-3"""
@@ -613,6 +617,7 @@ class Webscrape:
         enr_02[1].to_csv(f'{full_dir}enr_02-UIR.csv')
         enr_02[2].to_csv(f'{full_dir}enr_02-CTA.csv')
         enr_02[3].to_csv(f'{full_dir}enr_02-TMA.csv')
+        enr_02[4].to_csv(f'{full_dir}enr_02-ATZ.csv')
 
         enr_031 = self.parse_enr03_data('1') # returns single dataframe
         enr_031.to_csv(f'{full_dir}enr_031.csv')
