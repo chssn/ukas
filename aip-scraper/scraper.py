@@ -29,6 +29,14 @@ class Webscrape:
         self.cycle_url = cycle.url()
         self.country = config.COUNTRY_CODE
 
+        options = Options()
+        options.headless = True
+        options.add_argument("--window-size=1920,1200")
+        self.driver = webdriver.Chrome(options=options, executable_path="chromedriver.exe")
+
+    def __del__(self):
+        self.driver.quit()
+
     def get_table_soup(self, uri) -> BeautifulSoup:
         """Parse the given table into a beautifulsoup object"""
 
@@ -43,14 +51,8 @@ class Webscrape:
 
         logger.info(address)
 
-        options = Options()
-        options.headless = True
-        options.add_argument("--window-size=1920,1200")
-
-        driver = webdriver.Chrome(options=options, executable_path="chromedriver.exe")
-        driver.get(address)
-        source = driver.page_source
-        driver.quit()
+        self.driver.get(address)
+        source = self.driver.page_source
 
         return BeautifulSoup(source, "html.parser")
 
